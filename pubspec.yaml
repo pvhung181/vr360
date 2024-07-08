@@ -29,6 +29,7 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependencies:
   panorama: ^0.4.1
+  gif: ^2.3.0
   flutter:
     sdk: flutter
 

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 class PopupImage extends StatefulWidget {
 
-  final VoidCallback onPressed;
-
   final List<Widget> children;
+
+  final VoidCallback onPressed;
 
   const PopupImage({super.key, required this.children, required this.onPressed});
 
@@ -30,7 +30,6 @@ class _PopupImageState extends State<PopupImage> {
               onPanUpdate: (details) {
                 _changeOffset(dx + details.delta.dx, dy + details.delta.dy);
               },
-              behavior: HitTestBehavior.opaque,
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(4),

@@ -1,10 +1,14 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
+import 'package:gif/gif.dart';
 import 'package:panorama/panorama.dart';
 
+
+
+
 import '../components/hotspot_button.dart';
-import '../components/popup_description.dart';
+
+
+
 
 class PanoramaViewScreen extends StatefulWidget {
   const PanoramaViewScreen(
@@ -17,10 +21,12 @@ class PanoramaViewScreen extends StatefulWidget {
   State<PanoramaViewScreen> createState() => PanoramaViewScreenState();
 }
 
-class PanoramaViewScreenState extends State<PanoramaViewScreen> {
+class PanoramaViewScreenState extends State<PanoramaViewScreen>
+    with TickerProviderStateMixin {
   double _lon = 0;
   double _lat = 0;
   double _tilt = 0;
+  double dx = 0, dy = 0;
 
   late int _panoramaId;
 
@@ -28,25 +34,39 @@ class PanoramaViewScreenState extends State<PanoramaViewScreen> {
 
   bool isActive = false;
 
+  List<String> fans = ["assets/fan.gif", "assets/fan.jpg"];
+
+  int currFan = 0;
+
+  late final GifController _controller;
+
+  void _changeOffset(double x, double y) {
+    setState(() {
+      dx = x;
+      dy = y;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     _panoramaId = widget.panoramaId;
+    _controller = GifController(vsync: this);
   }
 
-  void changeActive(bool v) {
+  void _changeActive(bool v) {
     setState(() {
       isActive = v;
     });
   }
 
-  void insertHotspot(Hotspot hs) {
+  void _insertHotspot(Hotspot hs) {
     setState(() {
       hotspots.add(hs);
     });
   }
 
-  void onViewChanged(longitude, latitude, tilt) {
+  void _onViewChanged(double longitude, double latitude, double tilt) {
     setState(() {
       _lon = longitude;
       _lat = latitude;
@@ -54,40 +74,39 @@ class PanoramaViewScreenState extends State<PanoramaViewScreen> {
     });
   }
 
-  void onTap(double longitude, double latitude, double tilt) {
-    Hotspot h = Hotspot(
-      latitude: latitude,
-      longitude: longitude,
-      width: 120.0,
-      height: 120.0,
-      widget: Container(
-        decoration: BoxDecoration(
-            color: Color.fromARGB(255, Random().nextInt(255),
-                Random().nextInt(255), Random().nextInt(255)),
-            borderRadius: const BorderRadius.all(Radius.circular(12))),
-      ),
-    );
-
-    //insertHotspot(h);
-    print("$longitude $latitude");
+  void _onTap(double longitude, double latitude, double tilt) {
+    // Hotspot h = Hotspot(
+    //   latitude: -13.5,
+    //   longitude: 121.55,
+    //   orgin: const Offset(0, 0),
+    //   width: 400.0,
+    //   height: 500.0,
+    //   widget: Image.asset(
+    //     "assets/curtains.gif",
+    //     fit: BoxFit.fitHeight,
+    //   ),
+    // );
+    print('long : $longitude, lat : $latitude');
+    // _insertHotspot(h);
   }
 
   @override
   Widget build(BuildContext context) {
-    for (var h in hotspots) {
-      h.widget = Container(
-        decoration: BoxDecoration(
-            color: Color.fromARGB(255, Random().nextInt(255),
-                Random().nextInt(255), Random().nextInt(255)),
-            borderRadius: const BorderRadius.all(Radius.circular(42))),
-      );
-    }
+    // for (var h in hotspots) {
+    //   h.widget = Container(
+    //     decoration: BoxDecoration(
+    //         color: Color.fromARGB(255, Random().nextInt(255),
+    //             Random().nextInt(255), Random().nextInt(255)),
+    //         borderRadius: const BorderRadius.all(Radius.circular(42))),
+    //   );
+    // }
+
     Panorama panorama = switch (_panoramaId) {
       0 => Panorama(
-          animSpeed: 1.0,
-          sensorControl: SensorControl.Orientation,
-          onViewChanged: onViewChanged,
-          onTap: onTap,
+          animSpeed: 0.01,
+          sensorControl: SensorControl.None,
+          onViewChanged: _onViewChanged,
+          onTap: _onTap,
           hotspots: [
             Hotspot(
               latitude: -15.0,
@@ -111,9 +130,60 @@ class PanoramaViewScreenState extends State<PanoramaViewScreen> {
               widget: HotspotButton(
                   icon: Icons.search,
                   onPressed: () {
-                    changeActive(!isActive);
+                    _changeActive(!isActive);
                   }),
             ),
+            Hotspot(
+                latitude: 17,
+                longitude: -43,
+                width: 400.0,
+                height: 500.0,
+                widget: GestureDetector(
+                  child: Image.asset(fans[currFan]),
+                  onTap: () {
+                    setState(() {
+                      currFan = ((currFan + 1) % fans.length);
+                    });
+                  },
+                )),
+            Hotspot(
+                latitude: -13.5,
+                longitude: 121.55,
+                width: 400.0,
+                height: 500.0,
+                widget: GestureDetector(
+                  onTap: () {
+                    if (_controller.value == _controller.lowerBound &&
+                        !_controller.isAnimating) {
+                      _controller.forward().whenComplete(() {
+                        _controller.value = _controller.upperBound;
+                      });
+                    } else if (_controller.value == _controller.upperBound &&
+                        !_controller.isAnimating) {
+                      _controller
+                          .animateBack(_controller.lowerBound)
+                          .whenComplete(() {
+                        _controller.value = _controller.lowerBound;
+                      });
+                    }
+                  },
+                  child: Gif(
+                    image: const AssetImage(
+                      "assets/curtains.gif",
+                    ),
+                    controller: _controller,
+                    width: 400.0,
+                    height: 500.0,
+                    fit: BoxFit.fill,
+                    //fps: 30,
+                    duration: const Duration(seconds: 3),
+                    autostart: Autostart.no,
+                    placeholder: (context) => const Text('Loading...'),
+                    onFetchCompleted: () {
+                      _controller.reset();
+                    },
+                  ),
+                )),
             ...hotspots
           ],
           child: Image.asset("assets/panorama.jpg"),
@@ -121,7 +191,7 @@ class PanoramaViewScreenState extends State<PanoramaViewScreen> {
       1 => Panorama(
           animSpeed: 1.0,
           sensorControl: SensorControl.Orientation,
-          onViewChanged: onViewChanged,
+          onViewChanged: _onViewChanged,
           hotspots: [
             Hotspot(
               latitude: 0.0,
@@ -141,11 +211,24 @@ class PanoramaViewScreenState extends State<PanoramaViewScreen> {
           child: Image.asset("assets/panorama2.webp"),
         ),
       _ => Panorama(
-          animSpeed: 1.0,
+          animSpeed: 0.001,
           sensorControl: SensorControl.Orientation,
-          onViewChanged: onViewChanged,
-          hotspots: const [],
-          child: Image.asset("assets/hongkon.jpg"),
+          onTap: _onTap,
+          onViewChanged: _onViewChanged,
+          hotspots: [
+            Hotspot(
+                latitude: 74,
+                longitude: -23,
+                width: 440.0,
+                height: 200.0,
+                widget: GestureDetector(
+                  onTap: () {
+
+                  },
+                  child: Image.asset("assets/fan_transparent.gif"),
+                ))
+          ],
+          child: Image.asset("assets/home.jpg"),
         )
     };
 
@@ -158,44 +241,50 @@ class PanoramaViewScreenState extends State<PanoramaViewScreen> {
           panorama,
           Text(
               '${_lon.toStringAsFixed(3)}, ${_lat.toStringAsFixed(3)}, ${_tilt.toStringAsFixed(3)}'),
-          if (isActive)
-            Positioned.fill(
-              child: Center(
-                child: PopupImage(
-                  onPressed: () {
-                    changeActive(false);
-                  },
-                  children: [
-                    const Text(
-                      "Sun Flower",
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 24,
-                          color: Colors.black),
-                    ),
-                    Image.asset(
-                      "assets/sun_flower.png",
-                      alignment: Alignment.center,
-                      width: 300,
-                      height: 150,
-                      fit: BoxFit.scaleDown,
-                    ),
-                    const Text(
-                      "The sunflower, with its bright yellow petals and towering height, symbolizes warmth and positivity. "
-                      "Facing the sun, it captures the essence of summer. Its large, round face resembles the sun itself, "
-                      "bringing joy and light to any garden. Sunflowers are a timeless reminder of nature's beauty and resilience",
-                      style: TextStyle(
-                        fontWeight: FontWeight.normal,
-                        color: Colors.black,
-                      ),
-                      textDirection: TextDirection.ltr,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          // if (isActive)
+          //   Positioned.fill(
+          //     child: Center(
+          //       child: PopupImage(
+          //         onPressed: () {
+          //           _changeActive(false);
+          //         },
+          //         children: [
+          //           const Text(
+          //             "Sun Flower",
+          //             style: TextStyle(
+          //                 fontWeight: FontWeight.bold,
+          //                 fontSize: 24,
+          //                 color: Colors.black),
+          //           ),
+          //           Image.asset(
+          //             "assets/sun_flower.png",
+          //             alignment: Alignment.center,
+          //             width: 300,
+          //             height: 150,
+          //             fit: BoxFit.scaleDown,
+          //           ),
+          //           const Text(
+          //             "The sunflower, with its bright yellow petals and towering height, symbolizes warmth and positivity. "
+          //             "Facing the sun, it captures the essence of summer. Its large, round face resembles the sun itself, "
+          //             "bringing joy and light to any garden. Sunflowers are a timeless reminder of nature's beauty and resilience",
+          //             style: TextStyle(
+          //               fontWeight: FontWeight.normal,
+          //               color: Colors.black,
+          //             ),
+          //             textDirection: TextDirection.ltr,
+          //           ),
+          //         ],
+          //       ),
+          //     ),
+          //   ),
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _controller.dispose();
   }
 }
